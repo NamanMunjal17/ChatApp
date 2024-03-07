@@ -2,7 +2,7 @@ const { Server } = require("socket.io");
 const dotenv = require("dotenv");
 const { Redis } = require("ioredis");
 const { initializeApp } = require("firebase/app");
-const { getFirestore } = require("firebase/firestore");
+const { getFirestore, doc, setDoc } = require("firebase/firestore");
 
 //TODO Store all this in dotenv file
 const firebaseConfig = {
@@ -25,11 +25,22 @@ const io = new Server(3000, { /* options */ });
 const pub = new Redis({ host: process.env.HOST, port: process.env.PORT, username: process.env.USER, password: process.env.PASSWORD })
 const sub = new Redis({ host: process.env.HOST, port: process.env.PORT, username: process.env.USER, password: process.env.PASSWORD })
 
+const sockToId={};
 
 io.on("connection", (socket) => {
 
-    socket.on('online' async (id) => {
+    socket.on('online', async (id) => {
+        sockToId[socket.id]=id;
+        await setDoc(doc(db,"users",id),{
+            isOnline: true
+        })
+    })
 
+    socket.on('disconnect', async (id)=>{
+        await setDoc(doc(db,"users",sockToId[socket.id]),{
+            isOnline: false
+        })
+        delete sockToId[socket.id];
     })
 
     socket.on('message', async (message) => {
